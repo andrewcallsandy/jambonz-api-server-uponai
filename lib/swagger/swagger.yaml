@@ -2529,6 +2529,11 @@ paths:
                   type: string
                   format: uuid
                   example: 85f9c036-ba61-4f28-b2f5-617c23fa68ff
+                limits:
+                  type: array
+                  description: optional array of account limits to set during creation
+                  items:
+                    $ref: '#/components/schemas/AccountLimit'
               required: 
                 - name
                 - service_provider_sid
@@ -2744,13 +2749,21 @@ paths:
     put:
       tags:
         - Accounts
-      summary: update account
+      summary: update account and optionally update account limits
       operationId: updateAccount
       requestBody:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/Account'
+              allOf:
+                - $ref: '#/components/schemas/Account'
+                - type: object
+                  properties:
+                    limits:
+                      type: array
+                      description: optional array of account limits to update (creates new or updates existing limits)
+                      items:
+                        $ref: '#/components/schemas/AccountLimit'
       responses:
         204:
           description: account updated
@@ -2853,10 +2866,24 @@ paths:
       tags:
         - Accounts
       summary: add or change the sip realm
+      description: |
+        Updates the sip_realm for an account and optionally creates DNS records (A records and SRV records)
+        for the realm. The sip_realm must follow the format `subdomain.domain.tld` where the domain portion
+        must be managed in your DNS provider (DNSMadeEasy).
+
+        Use `skip_dns=true` if you manage DNS outside of jambonz or want to create records manually.
       operationId: createSipRealm
+      parameters:
+        - name: skip_dns
+          in: query
+          required: false
+          description: When set to true, skips DNS record creation. Use this if you manage DNS externally.
+          schema:
+            type: boolean
+            default: false
       responses:
         204:
-          description: sip_realm updated and DNS entries successfully created
+          description: sip_realm updated successfully (DNS entries created unless skip_dns=true)
         400:
           description: bad request
           content:
@@ -3279,6 +3306,46 @@ paths:
                 type: object
         404:
           description: account or call not found
+  /ServiceProviders/{ServiceProviderSid}/RecentCalls/{CallSid}/pcap/by-call-sid:
+    parameters:
+      - name: ServiceProviderSid
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - name: CallSid
+        in: path
+        required: true
+        schema:
+          type: string
+      - name: method
+        in: query
+        required: false
+        schema:
+          type: string
+          enum:
+            - invite
+            - register
+          default: invite
+    get:
+      tags:
+        - Service Providers
+      summary: retrieve pcap for a call by call_sid
+      description: Looks up the SIP call ID from the CDR using the jambonz call_sid, then retrieves the pcap from Homer
+      operationId: getRecentCallPcapByCallSidBySP
+      responses:
+        200:
+          description: pcap file
+          content:
+            application/octet-stream:
+              schema:
+                type: string
+                format: binary
+        400:
+          description: service_provider_sid is required or Homer not configured
+        404:
+          description: call not found or no pcap available
   /ServiceProviders/{ServiceProviderSid}/RecentCalls:
     parameters:
       - name: ServiceProviderSid
@@ -3493,6 +3560,46 @@ paths:
                 type: object
         404:
           description: account or call not found
+  /Accounts/{AccountSid}/RecentCalls/{CallSid}/pcap/by-call-sid:
+    parameters:
+      - name: AccountSid
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - name: CallSid
+        in: path
+        required: true
+        schema:
+          type: string
+      - name: method
+        in: query
+        required: false
+        schema:
+          type: string
+          enum:
+            - invite
+            - register
+          default: invite
+    get:
+      tags:
+        - Accounts
+      summary: retrieve pcap for a call by call_sid
+      description: Looks up the SIP call ID from the CDR using the jambonz call_sid, then retrieves the pcap from Homer
+      operationId: getRecentCallPcapByCallSid
+      responses:
+        200:
+          description: pcap file
+          content:
+            application/octet-stream:
+              schema:
+                type: string
+                format: binary
+        400:
+          description: account_sid is required or Homer not configured
+        404:
+          description: call not found or no pcap available
   /ServiceProviders/{ServiceProviderSid}/Alerts:
     parameters:
       - name: ServiceProviderSid
@@ -6025,12 +6132,51 @@ components:
     Limits:
       type: object
       properties:
+        account_limits_sid:
+          type: string
+          format: uuid
+        account_sid:
+          type: string
+          format: uuid
         category:
           type: string
           enum:
+            - api_rate
             - voice_call_session
-            - api_limit
-            - devices
+            - device
+            - voice_call_minutes
+            - voice_call_session_license
+            - voice_call_minutes_license
+        quantity:
+          type: integer
+          minimum: 0
+          description: the limit quantity (non-negative number)
+      required:
+        - category
+        - quantity
+    AccountLimit:
+      type: object
+      description: account limit to set or update
+      properties:
+        category:
+          type: string
+          enum:
+            - api_rate
+            - voice_call_session
+            - device
+            - voice_call_minutes
+            - voice_call_session_license
+            - voice_call_minutes_license
+          description: the type of limit to set
+          example: voice_call_session
+        quantity:
+          type: integer
+          minimum: 0
+          description: the limit quantity (non-negative number)
+          example: 100
+      required:
+        - category
+        - quantity
     Lcr:
       type: object
       properties:
