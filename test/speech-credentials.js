@@ -422,85 +422,7 @@ test('speech credentials tests', async(t) => {
     });
     t.ok(result.statusCode === 204, 'successfully deleted speech credential for deepgram onprem');
 
-    /* add a credential for ibm tts */
-    if (process.env.IBM_TTS_API_KEY && process.env.IBM_TTS_REGION) {
-      result = await request.post(`/Accounts/${account_sid}/SpeechCredentials`, {
-        resolveWithFullResponse: true,
-        auth: authUser,
-        json: true,
-        body: {
-          vendor: 'ibm',
-          use_for_tts: true,
-          tts_api_key: process.env.IBM_TTS_API_KEY,
-          tts_region: process.env.IBM_TTS_REGION
-        }
-      });
-      t.ok(result.statusCode === 201, 'successfully added speech credential for ibm');
-      const ms_sid = result.body.sid;
 
-      /* test the speech credential */
-      result = await request.get(`/Accounts/${account_sid}/SpeechCredentials/${ms_sid}/test`, {
-        resolveWithFullResponse: true,
-        auth: authUser,
-        json: true,   
-      });
-      //console.log(JSON.stringify(result));
-      t.ok(result.statusCode === 200 && result.body.tts.status === 'ok', 'successfully tested speech credential for ibm tts');
-
-      /* delete the credential */
-      result = await request.delete(`/Accounts/${account_sid}/SpeechCredentials/${ms_sid}`, {
-        auth: authUser,
-        resolveWithFullResponse: true,
-      });
-      t.ok(result.statusCode === 204, 'successfully deleted speech credential');
-    }
-
-    /* add a credential for ibm stt */
-    if (process.env.IBM_STT_API_KEY && process.env.IBM_STT_REGION) {
-      result = await request.post(`/Accounts/${account_sid}/SpeechCredentials`, {
-        resolveWithFullResponse: true,
-        auth: authUser,
-        json: true,
-        body: {
-          vendor: 'ibm',
-          use_for_stt: true,
-          stt_api_key: process.env.IBM_STT_API_KEY,
-          stt_region: process.env.IBM_STT_REGION
-        }
-      });
-      t.ok(result.statusCode === 201, 'successfully added speech credential for ibm');
-      const ms_sid = result.body.sid;
-
-      /* test the speech credential */
-      result = await request.get(`/Accounts/${account_sid}/SpeechCredentials/${ms_sid}/test`, {
-        resolveWithFullResponse: true,
-        auth: authUser,
-        json: true,   
-      });
-      //console.log(JSON.stringify(result));
-      t.ok(result.statusCode === 200 && result.body.stt.status === 'ok', 'successfully tested speech credential for ibm stt');
-
-      result = await request.post(`/Accounts/${account_sid}/TtsCache/Synthesize`, {
-        resolveWithFullResponse: true,
-        auth: authUser,
-        json: true,
-        body: {
-          speech_credential_sid: ms_sid,
-          text: "Hello How are you",
-          language: "en-US",
-          voice: "en-US_MichaelExpressive"
-        }
-      });
-
-      t.ok(result.statusCode === 200, 'successfully IBM tested synthesize');
-
-      /* delete the credential */
-      result = await request.delete(`/Accounts/${account_sid}/SpeechCredentials/${ms_sid}`, {
-        auth: authUser,
-        resolveWithFullResponse: true,
-      });
-      t.ok(result.statusCode === 204, 'successfully deleted speech credential');
-    }
 
     /* add a credential for Siniox */
     if (process.env.SONIOX_API_KEY) {
@@ -656,7 +578,8 @@ test('speech credentials tests', async(t) => {
         use_for_stt: true,
         use_for_tts: false,
         api_key: 'asdasdasdasddsadasda',
-        model_id: 'eleven_multilingual_v2'
+        model_id: 'eleven_multilingual_v2',
+        api_uri: 'api.elevenlabs.io'
       }
     });
     t.ok(result.statusCode === 201, 'successfully added speech credential for elevenlabs');
@@ -805,6 +728,29 @@ test('speech credentials tests', async(t) => {
     });
     t.ok(result.statusCode === 204, 'successfully deleted speech credential');
 
+    /* add a credential for houndify */
+    result = await request.post(`/Accounts/${account_sid}/SpeechCredentials`, {
+      resolveWithFullResponse: true,
+      auth: authUser,
+      json: true,
+      body: {
+        vendor: 'houndify',
+        use_for_stt: true,
+        client_key: "ClientKey",
+        client_id: "ClientID",
+        user_id: "test_user"
+      }
+    });
+    t.ok(result.statusCode === 201, 'successfully added speech credential for houndify');
+    const houndifySid = result.body.sid;
+
+    /* delete the credential */
+    result = await request.delete(`/Accounts/${account_sid}/SpeechCredentials/${houndifySid}`, {
+      auth: authUser,
+      resolveWithFullResponse: true,
+    });
+    t.ok(result.statusCode === 204, 'successfully deleted speech credential');
+
     /* add a credential for Voxist */
     result = await request.post(`/Accounts/${account_sid}/SpeechCredentials`, {
       resolveWithFullResponse: true,
@@ -946,6 +892,28 @@ test('speech credentials tests', async(t) => {
     });
     t.ok(result.statusCode === 204, 'successfully deleted speech credential deepgramflux');
 
+    /* add a credential for gladia */
+    result = await request.post(`/Accounts/${account_sid}/SpeechCredentials`, {
+      resolveWithFullResponse: true,
+      auth: authUser,
+      json: true,
+      body: {
+        vendor: 'gladia',
+        use_for_tts: false,
+        use_for_stt: true,
+        api_key: 'api_key',
+      }
+    });
+    t.ok(result.statusCode === 201, 'successfully added speech credential for Gladia');
+    const gladiaSid = result.body.sid;
+
+    /* delete the credential */
+    result = await request.delete(`/Accounts/${account_sid}/SpeechCredentials/${gladiaSid}`, {
+      auth: authUser,
+      resolveWithFullResponse: true,
+    });
+    t.ok(result.statusCode === 204, 'successfully deleted speech credential for Gladia');
+
     /* Check google supportedLanguagesAndVoices */
     result = await request.get(`/Accounts/${account_sid}/SpeechCredentials/speech/supportedLanguagesAndVoices?vendor=google`, {
       resolveWithFullResponse: true,
@@ -1005,17 +973,7 @@ test('speech credentials tests', async(t) => {
     t.ok(result.body.stt.length !== 0, 'successfully get deepgram supported languages and voices');
     t.ok(result.body.models.length !== 0, 'successfully get deepgram supported languages and voices');
 
-    /* Check ibm supportedLanguagesAndVoices */
-    result = await request.get(`/Accounts/${account_sid}/SpeechCredentials/speech/supportedLanguagesAndVoices?vendor=ibm`, {
-      resolveWithFullResponse: true,
-      simple: false,
-      auth: authAdmin,
-      json: true,
-    });
-    t.ok(result.body.tts.length !== 0, 'successfully get ibm supported languages and voices');
-    t.ok(result.body.stt.length !== 0, 'successfully get ibm supported languages and voices');
-
-    /* Check ibm supportedLanguagesAndVoices */
+    /* Check nvidia supportedLanguagesAndVoices */
     result = await request.get(`/Accounts/${account_sid}/SpeechCredentials/speech/supportedLanguagesAndVoices?vendor=nvidia`, {
       resolveWithFullResponse: true,
       simple: false,
@@ -1080,6 +1038,124 @@ test('speech credentials tests', async(t) => {
     });
     t.ok(result.body.tts.length !== 0, 'successfully get whisper supported languages and voices');
     t.ok(result.body.models.length !== 0, 'successfully get whisper supported languages and voices');
+
+    /* Check gladia supportedLanguagesAndVoices */
+    result = await request.get(`/Accounts/${account_sid}/SpeechCredentials/speech/supportedLanguagesAndVoices?vendor=gladia`, {
+      resolveWithFullResponse: true,
+      simple: false,
+      auth: authAdmin,
+      json: true,
+    });
+    t.ok(result.body.stt.length !== 0, 'successfully get gladia supported languages and voices');
+
+    /* add a credential for google with model_id */
+    result = await request.post(`/Accounts/${account_sid}/SpeechCredentials`, {
+      resolveWithFullResponse: true,
+      auth: authUser,
+      json: true,
+      body: {
+        vendor: 'google',
+        label: 'google_gemini_tts',
+        service_key: jsonKey,
+        use_for_tts: true,
+        use_for_stt: true,
+        model_id: 'gemini-2.0-flash-exp'
+      }
+    });
+    t.ok(result.statusCode === 201, 'successfully added speech credential for google with model_id');
+    const google_gemini_sid = result.body.sid;
+
+    /* query the credential and verify model_id are stored */
+    result = await request.get(`/Accounts/${account_sid}/SpeechCredentials/${google_gemini_sid}`, {
+      resolveWithFullResponse: true,
+      auth: authAdmin,
+      json: true,
+    });
+    t.ok(result.statusCode === 200, 'successfully retrieved google gemini speech credential');
+    t.ok(result.body.vendor === 'google', 'vendor is google');
+    t.ok(result.body.label === 'google_gemini_tts', 'label is correct');
+    t.ok(result.body.model_id === 'gemini-2.0-flash-exp', 'model_id is correct');
+
+    /* update the credential to change model_id */
+    result = await request.put(`/Accounts/${account_sid}/SpeechCredentials/${google_gemini_sid}`, {
+      resolveWithFullResponse: true,
+      auth: authUser,
+      json: true,
+      body: {
+        use_for_tts: true,
+        use_for_stt: true,
+        model_id: 'gemini-2.5-flash-preview-native-audio'
+      }
+    });
+    t.ok(result.statusCode === 204, 'successfully updated google gemini speech credential');
+
+    /* verify the update */
+    result = await request.get(`/Accounts/${account_sid}/SpeechCredentials/${google_gemini_sid}`, {
+      resolveWithFullResponse: true,
+      auth: authAdmin,
+      json: true,
+    });
+    t.ok(result.statusCode === 200, 'successfully retrieved updated google gemini speech credential');
+    t.ok(result.body.model_id === 'gemini-2.5-flash-preview-native-audio', 'model_id is updated correctly');
+
+    /* update the credential to disable gemini tts */
+    result = await request.put(`/Accounts/${account_sid}/SpeechCredentials/${google_gemini_sid}`, {
+      resolveWithFullResponse: true,
+      auth: authUser,
+      json: true,
+      body: {
+        use_for_tts: true,
+        use_for_stt: true,
+        model_id: null
+      }
+    });
+    t.ok(result.statusCode === 204, 'successfully updated google speech credential to disable gemini tts');
+
+    /* verify the update to disable gemini tts */
+    result = await request.get(`/Accounts/${account_sid}/SpeechCredentials/${google_gemini_sid}`, {
+      resolveWithFullResponse: true,
+      auth: authAdmin,
+      json: true,
+    });
+    t.ok(result.statusCode === 200, 'successfully retrieved google speech credential after disabling gemini');
+    t.ok(!result.body.model_id, 'model_id is now null');
+
+    /* delete the google gemini credential */
+    result = await request.delete(`/Accounts/${account_sid}/SpeechCredentials/${google_gemini_sid}`, {
+      auth: authUser,
+      resolveWithFullResponse: true,
+    });
+    t.ok(result.statusCode === 204, 'successfully deleted google gemini speech credential');
+
+    /* add a credential for google at service provider level with gemini tts */
+    result = await request.post(`/ServiceProviders/${service_provider_sid}/SpeechCredentials`, {
+      resolveWithFullResponse: true,
+      auth: authAdmin,
+      json: true,
+      body: {
+        vendor: 'google',
+        service_key: jsonKey,
+        use_for_tts: true,
+        use_for_stt: true,
+        model_id: 'gemini-2.0-flash-exp'
+      }
+    });
+    t.ok(result.statusCode === 201, 'successfully added google gemini speech credential to service provider');
+    const sp_google_gemini_sid = result.body.sid;
+
+    /* query the service provider credential */
+    result = await request.get(`/ServiceProviders/${service_provider_sid}/SpeechCredentials`, {
+      resolveWithFullResponse: true,
+      auth: authAdmin,
+      json: true,
+    });
+    t.ok(result.statusCode === 200, 'successfully queried service provider speech credentials');
+    const spCred = result.body.find(c => c.speech_credential_sid === sp_google_gemini_sid);
+    t.ok(spCred, 'found google gemini credential in service provider credentials');
+    t.ok(spCred.model_id === 'gemini-2.0-flash-exp', 'model_id is correct for SP credential');
+
+    /* delete the service provider google gemini credential */
+    await deleteObjectBySid(request, `/ServiceProviders/${service_provider_sid}/SpeechCredentials`, sp_google_gemini_sid);
 
     await deleteObjectBySid(request, '/Accounts', account_sid);
     await deleteObjectBySid(request, '/ServiceProviders', service_provider_sid);

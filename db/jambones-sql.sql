@@ -162,7 +162,7 @@ regex VARCHAR(32) NOT NULL COMMENT 'regex-based pattern match against dialed num
 description VARCHAR(1024),
 priority INTEGER NOT NULL COMMENT 'lower priority routes are attempted first',
 PRIMARY KEY (lcr_route_sid)
-) COMMENT='An ordered list of  digit patterns in an LCR table.  The patterns are tested in sequence until one matches';
+) COMMENT='An ordered list of  digit patterns in an LCR table.  The pat';
 
 CREATE TABLE lcr
 (
@@ -173,7 +173,7 @@ default_carrier_set_entry_sid CHAR(36) COMMENT 'default carrier/route to use whe
 service_provider_sid CHAR(36),
 account_sid CHAR(36),
 PRIMARY KEY (lcr_sid)
-) COMMENT='An LCR (least cost routing) table that is used by a service provider or account to make decisions about routing outbound calls when multiple carriers are available.';
+) COMMENT='An LCR (least cost routing) table that is used by a service ';
 
 CREATE TABLE password_settings
 (
@@ -204,6 +204,7 @@ tech_prefix VARCHAR(16) COMMENT 'tech prefix to prepend to outbound calls to thi
 inbound_auth_username VARCHAR(64),
 inbound_auth_password VARCHAR(64),
 diversion VARCHAR(32),
+trunk_type ENUM('static_ip','auth','reg') NOT NULL DEFAULT 'static_ip',
 PRIMARY KEY (predefined_carrier_sid)
 );
 
@@ -418,6 +419,7 @@ register_public_ip_in_contact BOOLEAN NOT NULL DEFAULT false,
 register_status VARCHAR(4096),
 dtmf_type ENUM('rfc2833','tones','info') NOT NULL DEFAULT 'rfc2833',
 outbound_sip_proxy VARCHAR(255),
+trunk_type ENUM('static_ip','auth','reg') NOT NULL DEFAULT 'static_ip',
 PRIMARY KEY (voip_carrier_sid)
 ) COMMENT='A Carrier or customer PBX that can send or receive calls';
 
@@ -468,6 +470,8 @@ send_options_ping BOOLEAN NOT NULL DEFAULT 0,
 use_sips_scheme BOOLEAN NOT NULL DEFAULT 0,
 pad_crypto BOOLEAN NOT NULL DEFAULT 0,
 protocol ENUM('udp','tcp','tls', 'tls/srtp') DEFAULT 'udp' COMMENT 'Outbound call protocol',
+remove_ice BOOLEAN NOT NULL DEFAULT 0,
+dtls_off BOOLEAN NOT NULL DEFAULT 0,
 PRIMARY KEY (sip_gateway_sid)
 ) COMMENT='A whitelisted sip gateway used for origination/termination';
 
@@ -702,6 +706,12 @@ CREATE INDEX service_provider_sid_idx ON phone_numbers (service_provider_sid);
 ALTER TABLE phone_numbers ADD FOREIGN KEY service_provider_sid_idxfk_8 (service_provider_sid) REFERENCES service_providers (service_provider_sid);
 
 CREATE INDEX sip_gateway_idx_hostport ON sip_gateways (ipv4,port);
+
+CREATE INDEX idx_sip_gateways_inbound_carrier ON sip_gateways (inbound,voip_carrier_sid);
+
+CREATE INDEX idx_sip_gateways_inbound_lookup ON sip_gateways (inbound,netmask,ipv4);
+
+CREATE INDEX idx_sip_gateways_inbound_netmask ON sip_gateways (inbound,netmask);
 
 CREATE INDEX voip_carrier_sid_idx ON sip_gateways (voip_carrier_sid);
 ALTER TABLE sip_gateways ADD FOREIGN KEY voip_carrier_sid_idxfk_2 (voip_carrier_sid) REFERENCES voip_carriers (voip_carrier_sid);
