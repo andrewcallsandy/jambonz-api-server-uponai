@@ -1284,6 +1284,34 @@ paths:
               schema:
                 $ref: '#/components/schemas/GeneralError'
 
+  /VoipCarriers/{VoipCarrierSid}/pcap/by-carrier-sid:
+    parameters:
+      - name: VoipCarrierSid
+        in: path
+        required: true
+        schema:
+          type: string
+    get:
+      tags:
+        - Voip Carriers
+      summary: retrieve pcap for a registration-based carrier
+      description: >
+        Looks up the SIP Call-ID from the carrier's register_status field,
+        then retrieves the REGISTER pcap from Homer.
+      operationId: getCarrierPcapByCarrierSid
+      responses:
+        200:
+          description: pcap file
+          content:
+            application/octet-stream:
+              schema:
+                type: string
+                format: binary
+        400:
+          description: Homer not configured
+        404:
+          description: carrier not found, no registration status, or no pcap available
+
   /SipGateways:
     post:
       tags:
@@ -5356,6 +5384,15 @@ components:
         smpp_enquire_link_interval:
           type: number
           format: integer
+        trunk_type:
+          type: string
+          enum:
+            - static_ip
+            - auth
+            - reg
+          description: >
+            Defines the trunk type: static_ip (IP-based, default), auth (digest authentication),
+            or reg (carrier registers to us)
       required:
         - voip_carrier_sid
         - name
