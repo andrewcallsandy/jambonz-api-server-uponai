@@ -3628,6 +3628,103 @@ paths:
           description: account_sid is required or Homer not configured
         404:
           description: call not found or no pcap available
+  /Accounts/{AccountSid}/RecentCalls/{CallSid}/related-call-sids:
+    parameters:
+      - name: AccountSid
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - name: CallSid
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+          description: Jambonz call_sid (UUID) of any leg in the transfer group
+    get:
+      tags:
+        - Accounts
+      summary: Resolve all related call legs for a given call_sid
+      description: >
+        Given any call_sid in a transfer group, returns the parent/original leg and all
+        child/transfer legs. Uses the sip_parent_callid field from call history to walk
+        the relationship. If the call has no related legs it is returned as the sole entry.
+        Auth and account scoping are identical to the PCAP endpoint — call_sids outside
+        the requested account are never returned.
+      operationId: getRelatedCallSids
+      responses:
+        200:
+          description: Related call legs resolved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  account_sid:
+                    type: string
+                    format: uuid
+                  requested_call_sid:
+                    type: string
+                    format: uuid
+                    description: The call_sid that was requested
+                  primary_call_sid:
+                    type: string
+                    format: uuid
+                    description: The parent/original call_sid in the transfer group
+                  total_legs:
+                    type: integer
+                    description: Total number of legs found (1 if no related legs)
+                  legs:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        call_sid:
+                          type: string
+                          format: uuid
+                        role:
+                          type: string
+                          enum:
+                            - parent
+                            - child
+                          description: parent = original leg, child = transfer leg
+                        sip_callid:
+                          type: string
+                          description: SIP Call-ID header value for this leg
+                        sip_parent_callid:
+                          type: string
+                          nullable: true
+                          description: SIP Call-ID of the parent leg, null for the parent itself
+                        direction:
+                          type: string
+                          enum:
+                            - inbound
+                            - outbound
+                        from:
+                          type: string
+                        to:
+                          type: string
+                        answered:
+                          type: boolean
+                        attempted_at:
+                          type: string
+                          format: date-time
+                        answered_at:
+                          type: string
+                          format: date-time
+                          nullable: true
+                        terminated_at:
+                          type: string
+                          format: date-time
+                          nullable: true
+        400:
+          description: account_sid is required
+        404:
+          description: call not found
+        500:
+          description: internal server error
   /ServiceProviders/{ServiceProviderSid}/Alerts:
     parameters:
       - name: ServiceProviderSid
