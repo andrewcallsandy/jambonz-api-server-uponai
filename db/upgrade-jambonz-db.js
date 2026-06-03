@@ -248,6 +248,9 @@ const sql = {
     'ALTER TABLE predefined_sip_gateways ADD COLUMN remove_ice BOOLEAN NOT NULL DEFAULT 0',
     'ALTER TABLE predefined_sip_gateways ADD COLUMN dtls_off BOOLEAN NOT NULL DEFAULT 0',
     'ALTER TABLE predefined_sip_gateways ADD COLUMN protocol ENUM(\'udp\',\'tcp\',\'tls\', \'tls/srtp\') NOT NULL DEFAULT \'udp\'',
+  ],
+  9007: [
+    'ALTER TABLE `voip_carriers` ADD COLUMN `register_expires` INTEGER NULL',
   ]
 };
 const doIt = async() => {
@@ -285,6 +288,7 @@ const doIt = async() => {
         if (val < 9004) upgrades.push(...sql['9004']);
         if (val < 9005) upgrades.push(...sql['9005']);
         if (val < 9006) upgrades.push(...sql['9006']);
+        if (val < 9007) upgrades.push(...sql['9007']);
 
         // perform all upgrades
         logger.info({upgrades}, 'applying schema upgrades..');

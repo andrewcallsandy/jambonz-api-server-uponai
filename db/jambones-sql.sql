@@ -420,6 +420,7 @@ register_status VARCHAR(4096),
 dtmf_type ENUM('rfc2833','tones','info') NOT NULL DEFAULT 'rfc2833',
 outbound_sip_proxy VARCHAR(255),
 trunk_type ENUM('static_ip','auth','reg') NOT NULL DEFAULT 'static_ip',
+register_expires INTEGER NULL,
 PRIMARY KEY (voip_carrier_sid)
 ) COMMENT='A Carrier or customer PBX that can send or receive calls';
 

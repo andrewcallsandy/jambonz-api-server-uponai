@@ -1132,6 +1132,9 @@ paths:
                 register_public_ip_in_contact:
                   type: boolean
                   description: if true, use our public ip in Contact header; otherwise, use sip realm
+                register_expires:
+                  type: integer
+                  description: optional SIP registration expiry interval in seconds; overrides the global default (3600) for this carrier
                 tech_prefix:
                   type: string
                   description: prefix to be applied to the called number for outbound call attempts
@@ -5490,6 +5493,18 @@ components:
           description: >
             Defines the trunk type: static_ip (IP-based, default), auth (digest authentication),
             or reg (carrier registers to us)
+        register_from_user:
+          type: string
+        register_from_domain:
+          type: string
+        register_public_ip_in_contact:
+          type: boolean
+        register_expires:
+          type: integer
+          nullable: true
+          description: SIP registration expiry interval in seconds; overrides the global default for this carrier
+        outbound_sip_proxy:
+          type: string
       required:
         - voip_carrier_sid
         - name
