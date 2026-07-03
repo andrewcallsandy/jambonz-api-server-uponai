@@ -4383,6 +4383,20 @@ paths:
                     - pause
                     - silence
                     - resume
+                listen:
+                  type: object
+                  description: >
+                    Start or stop an ad-hoc audio fork (listen) on the call, without
+                    requiring a listen/stream verb to have been declared up front.
+                  properties:
+                    action:
+                      type: string
+                      enum:
+                        - start
+                        - stop
+                    url:
+                      type: string
+                      description: websocket url to stream audio to; required when action is 'start'
                 mute_status:
                   type: string
                   enum:
