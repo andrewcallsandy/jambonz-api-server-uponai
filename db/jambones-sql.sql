@@ -755,4 +755,83 @@ ALTER TABLE accounts ADD FOREIGN KEY device_calling_application_sid_idxfk (devic
 
 ALTER TABLE accounts ADD FOREIGN KEY siprec_hook_sid_idxfk (siprec_hook_sid) REFERENCES applications (application_sid);
 
+/* UponAI Phase 1 BLF / Live Extension Availability */
+CREATE TABLE blf_configurations
+(
+blf_configuration_sid CHAR(36) NOT NULL UNIQUE ,
+account_sid CHAR(36) NOT NULL,
+voip_carrier_sid CHAR(36) NOT NULL,
+is_enabled BOOLEAN NOT NULL DEFAULT false,
+event_package ENUM('dialog','presence') NOT NULL DEFAULT 'dialog',
+subscribe_expires INTEGER NOT NULL DEFAULT 3600,
+stale_seconds INTEGER NOT NULL DEFAULT 120,
+availability_hook_sid CHAR(36),
+capability_token_hash CHAR(64),
+capability_token_encrypted VARCHAR(1024),
+owner_node VARCHAR(64),
+last_reconcile_at DATETIME,
+last_error VARCHAR(512),
+created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+PRIMARY KEY (blf_configuration_sid)
+);
+
+CREATE TABLE blf_monitors
+(
+blf_monitor_sid CHAR(36) NOT NULL UNIQUE ,
+blf_configuration_sid CHAR(36) NOT NULL,
+extension VARCHAR(64) NOT NULL,
+display_name VARCHAR(128),
+presentity_uri VARCHAR(255) NOT NULL,
+is_enabled BOOLEAN NOT NULL DEFAULT true,
+contact_user VARCHAR(64) NOT NULL,
+sub_call_id VARCHAR(255),
+sub_local_tag VARCHAR(128),
+sub_remote_tag VARCHAR(128),
+sub_remote_target VARCHAR(512),
+sub_route_set TEXT,
+sub_cseq INTEGER,
+sub_expires_at DATETIME,
+sub_status ENUM('none','trying','active','pending','terminated','error') NOT NULL DEFAULT 'none',
+owner_node VARCHAR(64),
+state ENUM('unknown','idle','ringing','busy','held','unavailable') NOT NULL DEFAULT 'unknown',
+subscription_state VARCHAR(32),
+state_raw VARCHAR(64),
+last_notify_at DATETIME,
+stale_at DATETIME,
+last_error VARCHAR(512),
+created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+PRIMARY KEY (blf_monitor_sid)
+);
+
+CREATE TABLE blf_notify_events
+(
+blf_notify_event_sid CHAR(36) NOT NULL UNIQUE ,
+blf_monitor_sid CHAR(36) NOT NULL,
+event_digest CHAR(64) NOT NULL,
+source_ip VARCHAR(64),
+event_package VARCHAR(32),
+subscription_state VARCHAR(32),
+parsed_state ENUM('unknown','idle','ringing','busy','held','unavailable'),
+body_bytes INTEGER,
+created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+PRIMARY KEY (blf_notify_event_sid)
+);
+
+CREATE UNIQUE INDEX blf_config_carrier_idx ON blf_configurations (voip_carrier_sid);
+CREATE INDEX blf_config_account_idx ON blf_configurations (account_sid);
+ALTER TABLE blf_configurations ADD FOREIGN KEY blf_configurations_account_sid_fk (account_sid) REFERENCES accounts (account_sid) ON DELETE CASCADE;
+ALTER TABLE blf_configurations ADD FOREIGN KEY blf_configurations_voip_carrier_sid_fk (voip_carrier_sid) REFERENCES voip_carriers (voip_carrier_sid) ON DELETE CASCADE;
+ALTER TABLE blf_configurations ADD FOREIGN KEY blf_configurations_availability_hook_sid_fk (availability_hook_sid) REFERENCES webhooks (webhook_sid) ON DELETE SET NULL;
+
+CREATE UNIQUE INDEX blf_monitor_contact_idx ON blf_monitors (contact_user);
+CREATE UNIQUE INDEX blf_monitor_presentity_idx ON blf_monitors (blf_configuration_sid, presentity_uri);
+CREATE INDEX blf_monitor_config_idx ON blf_monitors (blf_configuration_sid);
+ALTER TABLE blf_monitors ADD FOREIGN KEY blf_monitors_configuration_sid_fk (blf_configuration_sid) REFERENCES blf_configurations (blf_configuration_sid) ON DELETE CASCADE;
+
+CREATE UNIQUE INDEX blf_notify_digest_idx ON blf_notify_events (blf_monitor_sid, event_digest);
+CREATE INDEX blf_notify_monitor_created_idx ON blf_notify_events (blf_monitor_sid, created_at);
+ALTER TABLE blf_notify_events ADD FOREIGN KEY blf_notify_events_monitor_sid_fk (blf_monitor_sid) REFERENCES blf_monitors (blf_monitor_sid) ON DELETE CASCADE;
+
 SET FOREIGN_KEY_CHECKS=1;

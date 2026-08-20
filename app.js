@@ -88,6 +88,7 @@ app.locals = {
   ...app.locals,
   registrar: new Registrar(logger, client),
   logger,
+  client,
   retrieveCall,
   deleteCall,
   listCalls,
@@ -194,7 +195,9 @@ app.use('/v1', unless(
     '/outboundSMS',
     '/AccountTest',
     '/InviteCodes',
-    '/PredefinedCarriers'
+    '/PredefinedCarriers',
+    '/public/BlfAvailability',
+    '/internal/Blf'
   ], passport.authenticate('bearer', {session: false})));
 app.use('/v1', unless(
   [
@@ -207,7 +210,9 @@ app.use('/v1', unless(
     '/AccountTest',
     '/InviteCodes',
     '/PredefinedCarriers',
-    '/logout'
+    '/logout',
+    '/public/BlfAvailability',
+    '/internal/Blf'
   ], verifyViewOnlyUser));
 app.use('/', routes);
 app.use((err, req, res, next) => {
@@ -239,13 +244,28 @@ const isValidWsKey = (hdr) => {
   return true;
 };
 
-server.on('upgrade', (request, socket, head) => {
+server.on('upgrade', async(request, socket, head) => {
   logger.debug({
     url: request.url,
     headers: request.headers,
   }, 'received upgrade request');
 
-  /* verify the path starts with /transcribe */
+  /* BLF availability stream (account API key or public capability token) */
+  try {
+    const {handleBlfUpgrade} = require('./lib/utils/blf-ws-hub');
+    const handled = await handleBlfUpgrade(logger, request, socket, head, wsServer, client);
+    if (handled) return;
+  } catch (err) {
+    logger.info({err}, 'BLF websocket upgrade error');
+    try {
+      socket.write('HTTP/1.1 500 Internal Server Error\r\n\r\n');
+    } catch {
+      // ignore
+    }
+    return socket.destroy();
+  }
+
+  /* verify the path starts with /record/ */
   if (!request.url.includes('/record/')) {
     logger.info(`unhandled path: ${request.url}`);
     return socket.write('HTTP/1.1 404 Not Found \r\n\r\n', () => socket.destroy());

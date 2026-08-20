@@ -46,6 +46,8 @@ tags:
     description: Least Cost Routing Carrier Set Entries operation
   - name: GoogleCustomVoices
     description: Google Custom voices operation
+  - name: BLF Availability
+    description: Live Extension Availability (SIP SUBSCRIBE/NOTIFY) for registration trunks
 paths:
   /BetaInviteCodes:
     post:
@@ -2880,6 +2882,593 @@ paths:
               schema:
                 $ref: '#/components/schemas/GeneralError'
 
+  /Accounts/{AccountSid}/BlfConfigurations:
+    parameters:
+      - name: AccountSid
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+    get:
+      tags:
+        - BLF Availability
+      summary: list BLF configurations for an account
+      operationId: listBlfConfigurations
+      responses:
+        200:
+          description: list of BLF configurations
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/BlfConfiguration'
+        403:
+          description: insufficient permissions
+        500:
+          description: system error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GeneralError'
+    post:
+      tags:
+        - BLF Availability
+      summary: create or upsert a BLF configuration for a registration-capable carrier
+      operationId: createBlfConfiguration
+      description: |
+        Requires a carrier with `requires_register=true` and `trunk_type` of `reg` or `auth`.
+
+        Idempotent by `voip_carrier_sid` for the account:
+        - **Create** (no existing row): HTTP `201`, `created=true`, `upserted=false`.
+          Response includes a new `capability_token` (store it; not returned again).
+        - **Upsert** (config already exists for this carrier): HTTP `200`, `created=false`,
+          `upserted=true`. Body fields that are present are applied; the existing
+          capability token is **not** rotated.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BlfConfigurationCreate'
+      responses:
+        201:
+          description: created (`created=true`, `upserted=false`; includes `capability_token`)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BlfConfiguration'
+        200:
+          description: upserted existing config for carrier (`created=false`, `upserted=true`)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BlfConfiguration'
+        400:
+          description: validation error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GeneralError'
+        403:
+          description: insufficient permissions
+        500:
+          description: system error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GeneralError'
+
+  /Accounts/{AccountSid}/BlfConfigurations/{BlfConfigurationSid}:
+    parameters:
+      - name: AccountSid
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - name: BlfConfigurationSid
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+    get:
+      tags:
+        - BLF Availability
+      summary: retrieve a BLF configuration (includes capability_url)
+      operationId: getBlfConfiguration
+      responses:
+        200:
+          description: BLF configuration
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BlfConfiguration'
+        404:
+          description: not found
+        500:
+          description: system error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GeneralError'
+    put:
+      tags:
+        - BLF Availability
+      summary: update a BLF configuration
+      operationId: updateBlfConfiguration
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BlfConfigurationUpdate'
+      responses:
+        200:
+          description: updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BlfConfiguration'
+        400:
+          description: validation error
+        404:
+          description: not found
+        500:
+          description: system error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GeneralError'
+    delete:
+      tags:
+        - BLF Availability
+      summary: delete a BLF configuration and its monitors
+      operationId: deleteBlfConfiguration
+      responses:
+        204:
+          description: deleted
+        404:
+          description: not found
+        500:
+          description: system error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GeneralError'
+
+  /Accounts/{AccountSid}/BlfConfigurations/{BlfConfigurationSid}/rotateToken:
+    parameters:
+      - name: AccountSid
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - name: BlfConfigurationSid
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+    post:
+      tags:
+        - BLF Availability
+      summary: rotate the public capability token (invalidates previous URL)
+      operationId: rotateBlfCapabilityToken
+      responses:
+        200:
+          description: new token
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - capability_token
+                  - capability_url
+                properties:
+                  capability_token:
+                    type: string
+                  capability_url:
+                    type: string
+                    format: uri
+        404:
+          description: not found
+        500:
+          description: system error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GeneralError'
+
+  /Accounts/{AccountSid}/BlfConfigurations/{BlfConfigurationSid}/Monitors:
+    parameters:
+      - name: AccountSid
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - name: BlfConfigurationSid
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+    get:
+      tags:
+        - BLF Availability
+      summary: list monitored extensions
+      operationId: listBlfMonitors
+      responses:
+        200:
+          description: monitors
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/BlfMonitor'
+        404:
+          description: not found
+        500:
+          description: system error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GeneralError'
+    post:
+      tags:
+        - BLF Availability
+      summary: add a monitored extension / presentity
+      operationId: createBlfMonitor
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BlfMonitorCreate'
+      responses:
+        201:
+          description: created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BlfMonitor'
+        400:
+          description: validation error
+        404:
+          description: not found
+        500:
+          description: system error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GeneralError'
+
+  /Accounts/{AccountSid}/BlfConfigurations/{BlfConfigurationSid}/Monitors/import:
+    parameters:
+      - name: AccountSid
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - name: BlfConfigurationSid
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+    post:
+      tags:
+        - BLF Availability
+      summary: bulk upsert monitors by presentity_uri
+      operationId: importBlfMonitors
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                monitors:
+                  type: array
+                  items:
+                    $ref: '#/components/schemas/BlfMonitorCreate'
+            example:
+              monitors:
+                - extension: "900"
+                  display_name: Ext 900
+                  presentity_uri: sip:900@uponai.com.myvoip
+                - extension: "901"
+                  display_name: Ext 901
+                  presentity_uri: sip:901@uponai.com.myvoip
+      responses:
+        200:
+          description: import result
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  created:
+                    type: integer
+                  updated:
+                    type: integer
+                  monitors:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/BlfMonitor'
+        400:
+          description: validation error
+        404:
+          description: not found
+        500:
+          description: system error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GeneralError'
+
+  /Accounts/{AccountSid}/BlfConfigurations/{BlfConfigurationSid}/Monitors/{BlfMonitorSid}:
+    parameters:
+      - name: AccountSid
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - name: BlfConfigurationSid
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - name: BlfMonitorSid
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+    put:
+      tags:
+        - BLF Availability
+      summary: update a monitored extension
+      operationId: updateBlfMonitor
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BlfMonitorUpdate'
+      responses:
+        200:
+          description: updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BlfMonitor'
+        404:
+          description: not found
+        500:
+          description: system error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GeneralError'
+    delete:
+      tags:
+        - BLF Availability
+      summary: delete a monitored extension
+      operationId: deleteBlfMonitor
+      responses:
+        204:
+          description: deleted
+        404:
+          description: not found
+        500:
+          description: system error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GeneralError'
+
+  /Accounts/{AccountSid}/BlfConfigurations/{BlfConfigurationSid}/Availability:
+    parameters:
+      - name: AccountSid
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - name: BlfConfigurationSid
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - name: extension
+        in: query
+        required: false
+        schema:
+          type: string
+        description: single extension to evaluate
+      - name: extensions
+        in: query
+        required: false
+        schema:
+          type: string
+        description: comma-separated extensions (max 50)
+    get:
+      tags:
+        - BLF Availability
+      summary: poll live extension availability for a configuration
+      operationId: getBlfAvailability
+      responses:
+        200:
+          description: availability snapshot
+          headers:
+            Cache-Control:
+              schema:
+                type: string
+                example: no-store
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BlfAvailabilityResponse'
+        404:
+          description: not found
+        500:
+          description: system error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GeneralError'
+
+  /Accounts/{AccountSid}/BlfStream:
+    parameters:
+      - name: AccountSid
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - name: token
+        in: query
+        required: false
+        schema:
+          type: string
+        description: API token (also accepted via Authorization Bearer header)
+      - name: blf_configuration_sid
+        in: query
+        required: false
+        schema:
+          type: string
+          format: uuid
+        description: optional filter to one configuration
+    get:
+      tags:
+        - BLF Availability
+      summary: WebSocket upgrade — live BLF status stream for an account
+      description: |
+        Upgrade this path to WebSocket (`wss://.../v1/Accounts/{AccountSid}/BlfStream?token=...`).
+        On connect the server sends `blf:connected`. On extension state changes it sends `blf:status`.
+      operationId: blfAccountWebSocket
+      responses:
+        101:
+          description: Switching Protocols (WebSocket)
+        401:
+          description: unauthorized
+        403:
+          description: forbidden
+
+  /public/BlfAvailability/{CapabilityToken}:
+    parameters:
+      - name: CapabilityToken
+        in: path
+        required: true
+        schema:
+          type: string
+        description: opaque capability token from create/rotate (credential)
+      - name: extension
+        in: query
+        required: false
+        schema:
+          type: string
+      - name: extensions
+        in: query
+        required: false
+        schema:
+          type: string
+    get:
+      tags:
+        - BLF Availability
+      summary: public poll of BLF availability (Retell-friendly)
+      description: No account SID in the URL. Treat the token as a secret.
+      operationId: getPublicBlfAvailability
+      security: []
+      responses:
+        200:
+          description: availability snapshot
+          headers:
+            Cache-Control:
+              schema:
+                type: string
+                example: no-store
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BlfAvailabilityResponse'
+        401:
+          description: invalid token
+        403:
+          description: configuration disabled
+        500:
+          description: system error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GeneralError'
+    post:
+      tags:
+        - BLF Availability
+      summary: public poll of BLF availability via POST body
+      operationId: postPublicBlfAvailability
+      security: []
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BlfAvailabilityQuery'
+      responses:
+        200:
+          description: availability snapshot
+          headers:
+            Cache-Control:
+              schema:
+                type: string
+                example: no-store
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BlfAvailabilityResponse'
+        401:
+          description: invalid token
+        403:
+          description: configuration disabled
+        500:
+          description: system error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GeneralError'
+
+  /public/BlfAvailability/{CapabilityToken}/ws:
+    parameters:
+      - name: CapabilityToken
+        in: path
+        required: true
+        schema:
+          type: string
+    get:
+      tags:
+        - BLF Availability
+      summary: WebSocket upgrade — public BLF status stream
+      description: |
+        Upgrade to WebSocket at
+        `wss://.../v1/public/BlfAvailability/{CapabilityToken}/ws`.
+      operationId: blfPublicWebSocket
+      security: []
+      responses:
+        101:
+          description: Switching Protocols (WebSocket)
+        401:
+          description: invalid token
+
   /Accounts/{AccountSid}/SipRealms/{SipRealm}:
     parameters:
       - name: AccountSid
@@ -5658,6 +6247,301 @@ components:
       required:
         - api_key_sid
         - token
+    BlfAvailabilityHook:
+      type: object
+      properties:
+        webhook_sid:
+          type: string
+          format: uuid
+        url:
+          type: string
+          format: uri
+        method:
+          type: string
+          enum: [GET, POST]
+        username:
+          type: string
+        password:
+          type: string
+    BlfConfigurationCreate:
+      type: object
+      required:
+        - voip_carrier_sid
+      properties:
+        voip_carrier_sid:
+          type: string
+          format: uuid
+        is_enabled:
+          type: boolean
+          default: false
+        event_package:
+          type: string
+          enum: [dialog, presence]
+          default: dialog
+        subscribe_expires:
+          type: integer
+          default: 3600
+        stale_seconds:
+          type: integer
+          default: 120
+        availability_hook:
+          oneOf:
+            - type: string
+              format: uuid
+              description: existing webhook_sid
+            - $ref: '#/components/schemas/BlfAvailabilityHook'
+    BlfConfigurationUpdate:
+      type: object
+      properties:
+        is_enabled:
+          type: boolean
+        event_package:
+          type: string
+          enum: [dialog, presence]
+        subscribe_expires:
+          type: integer
+        stale_seconds:
+          type: integer
+        availability_hook:
+          nullable: true
+          oneOf:
+            - type: string
+              format: uuid
+            - $ref: '#/components/schemas/BlfAvailabilityHook'
+    BlfConfiguration:
+      type: object
+      properties:
+        blf_configuration_sid:
+          type: string
+          format: uuid
+        account_sid:
+          type: string
+          format: uuid
+        voip_carrier_sid:
+          type: string
+          format: uuid
+        is_enabled:
+          type: boolean
+        event_package:
+          type: string
+          enum: [dialog, presence]
+        subscribe_expires:
+          type: integer
+        stale_seconds:
+          type: integer
+        owner_node:
+          type: string
+          nullable: true
+        last_reconcile_at:
+          type: string
+          nullable: true
+        last_error:
+          type: string
+          nullable: true
+        availability_hook:
+          nullable: true
+          allOf:
+            - $ref: '#/components/schemas/BlfAvailabilityHook'
+        capability_url:
+          type: string
+          format: uri
+          nullable: true
+          description: public Retell-friendly URL (when token can be revealed)
+        capability_token:
+          type: string
+          description: opaque token; returned only on create and rotateToken
+        created:
+          type: boolean
+          description: true when POST created a new row; false when upserted an existing carrier config
+        upserted:
+          type: boolean
+          description: true when POST found an existing config for the carrier and updated/returned it
+        monitors:
+          type: object
+          properties:
+            total:
+              type: integer
+            active_subscriptions:
+              type: integer
+            idle:
+              type: integer
+            busy:
+              type: integer
+            unknown:
+              type: integer
+        created_at:
+          type: string
+        updated_at:
+          type: string
+      required:
+        - blf_configuration_sid
+        - account_sid
+        - voip_carrier_sid
+    BlfMonitorCreate:
+      type: object
+      required:
+        - extension
+        - presentity_uri
+      properties:
+        extension:
+          type: string
+          example: "900"
+        display_name:
+          type: string
+          example: Ext 900
+        presentity_uri:
+          type: string
+          example: sip:900@uponai.com.myvoip
+        is_enabled:
+          type: boolean
+          default: true
+    BlfMonitorUpdate:
+      type: object
+      properties:
+        extension:
+          type: string
+        display_name:
+          type: string
+        presentity_uri:
+          type: string
+        is_enabled:
+          type: boolean
+    BlfMonitor:
+      type: object
+      properties:
+        blf_monitor_sid:
+          type: string
+          format: uuid
+        blf_configuration_sid:
+          type: string
+          format: uuid
+        extension:
+          type: string
+        display_name:
+          type: string
+          nullable: true
+        presentity_uri:
+          type: string
+        is_enabled:
+          type: boolean
+        contact_user:
+          type: string
+        sub_status:
+          type: string
+          enum: [pending, active, terminated, failed, unknown]
+        state:
+          type: string
+          enum: [unknown, idle, ringing, busy, held, unavailable]
+        subscription_state:
+          type: string
+          nullable: true
+        last_notify_at:
+          type: string
+          nullable: true
+        stale_at:
+          type: string
+          nullable: true
+        last_error:
+          type: string
+          nullable: true
+        created_at:
+          type: string
+        updated_at:
+          type: string
+      required:
+        - blf_monitor_sid
+        - blf_configuration_sid
+        - extension
+        - presentity_uri
+    BlfExtensionAvailability:
+      type: object
+      properties:
+        extension:
+          type: string
+        display_name:
+          type: string
+          nullable: true
+        presentity_uri:
+          type: string
+        state:
+          type: string
+          enum: [unknown, idle, ringing, busy, held, unavailable]
+        available:
+          type: boolean
+          description: true when state is idle, subscription active, and not stale
+        stale:
+          type: boolean
+        last_notify_at:
+          type: string
+          nullable: true
+        stale_at:
+          type: string
+          nullable: true
+        subscription_status:
+          type: string
+    BlfAvailabilityQuery:
+      type: object
+      properties:
+        extension:
+          type: string
+        extensions:
+          type: array
+          items:
+            type: string
+          maxItems: 50
+        args:
+          type: object
+          description: Retell-style nested args
+          properties:
+            extension:
+              type: string
+            extensions:
+              type: array
+              items:
+                type: string
+    BlfAvailabilityResponse:
+      type: object
+      properties:
+        blf_configuration_sid:
+          type: string
+          format: uuid
+        observed_at:
+          type: string
+          format: date-time
+        extensions:
+          type: array
+          items:
+            $ref: '#/components/schemas/BlfExtensionAvailability'
+        available:
+          type: array
+          items:
+            type: string
+        unavailable:
+          type: array
+          items:
+            type: string
+        counts:
+          type: object
+          properties:
+            total:
+              type: integer
+            available:
+              type: integer
+            unavailable:
+              type: integer
+            unknown:
+              type: integer
+            stale:
+              type: integer
+        any_available:
+          type: boolean
+        all_available:
+          type: boolean
+      required:
+        - blf_configuration_sid
+        - observed_at
+        - extensions
+        - any_available
     PhoneNumber:
       type: object
       properties:
